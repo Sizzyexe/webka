@@ -1,68 +1,90 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Магазин кроссовок</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Sneaker Shop</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { background-color: #f7f7f7; }
-        .card { margin-bottom: 20px; transition: transform 0.3s; }
-        .card:hover { transform: translateY(-5px); }
-        .btn-pay { background-color: #28a745; color: white; }
-        .product-image { height: 200px; object-fit: cover; }
+        .card { margin: 10px; }
+        #cart { position: fixed; right: 20px; bottom: 20px; }
     </style>
 </head>
 <body>
-<div class="container mt-5">
-    <h1 class="text-center mb-4">Магазин кроссовок</h1>
-    <div class="row">
-        {% for product in products %}
-        <div class="col-md-4 mb-4">
-            <div class="card h-100">
-                <img src="{{ product.image }}" class="card-img-top product-image" alt="{{ product.name }}"
-                     onerror="this.src='/static/images/image1.jpg'">
-                <div class="card-body d-flex flex-column">
-                    <h5 class="card-title">{{ product.name }}</h5>
-                    <p class="card-text">Цена: ${{ product.price }}</p>
-                    <button class="btn btn-pay mt-auto"
-                            onclick="pay({{ product.id }}, '{{ product.name | e }}', {{ product.price }})">
-                        Купить сейчас
+<div class="container">
+    <h1 class="my-4">Магазин кроссовок</h1>
+    
+    <div class="row" id="products"></div>
+    
+    <button id="checkoutBtn" class="btn btn-success d-none" onclick="checkout()">
+        Оформить заказ ($<span id="total">0</span>)
+    </button>
+</div>
+
+<script>
+let cart = JSON.parse(localStorage.getItem('cart')) || {};
+
+const products = [
+    {id: 1, name: "Nike Air Max", price: 120, image: "url_изображения"},
+    {id: 2, name: "Adidas Ultraboost", price: 150, image: "url_изображения"}
+];
+
+function renderProducts() {
+    const container = document.getElementById('products');
+    container.innerHTML = products.map(product => `
+        <div class="col-md-4">
+            <div class="card">
+                <img src="${product.image}" class="card-img-top">
+                <div class="card-body">
+                    <h5>${product.name}</h5>
+                    <p>$${product.price}</p>
+                    <button class="btn btn-primary" 
+                            onclick="addToCart(${product.id})">
+                        Добавить в корзину
                     </button>
                 </div>
             </div>
         </div>
-        {% endfor %}
-    </div>
-</div>
+    `).join('');
+}
 
-<script>
-    function pay(productId, productName, productPrice) {
-        const orderDetails = {
-            id: productId,
-            name: productName,
-            price: productPrice,
-            date: new Date().toISOString()
-        };
+function addToCart(productId) {
+    cart[productId] = (cart[productId] || 0) + 1;
+    updateCart();
+}
 
-        fetch("/order", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(orderDetails)
-        })
-        .then(response => {
-            if (!response.ok) throw new Error("Ошибка сети");
-            return response.json();
-        })
-        .then(data => {
-            alert(data.message);
-            // Дополнительные действия после успешного заказа
-        })
-        .catch(error => {
-            alert("Ошибка: " + error.message);
-            console.error("Order error:", error);
-        });
-    }
+function updateCart() {
+    localStorage.setItem('cart', JSON.stringify(cart));
+    const total = Object.entries(cart).reduce((sum, [id, qty]) => 
+        sum + (products.find(p => p.id === parseInt(id)).price * qty), 0);
+    
+    document.getElementById('total').textContent = total;
+    document.getElementById('checkoutBtn').classList.toggle('d-none', total === 0);
+}
+
+function checkout() {
+    Telegram.WebApp.showPopup({
+        title: "Оформление заказа",
+        message: "Введите ваши данные:",
+        buttons: [{
+            id: 'confirm',
+            type: 'default',
+            text: 'Подтвердить'
+        }]
+    }, async (btnId) => {
+        if(btnId === 'confirm') {
+            const data = {
+                cart: cart,
+                total: document.getElementById('total').textContent,
+                date: new Date().toISOString()
+            };
+            Telegram.WebApp.sendData(JSON.stringify(data));
+            Telegram.WebApp.close();
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', renderProducts);
 </script>
 </body>
 </html>
