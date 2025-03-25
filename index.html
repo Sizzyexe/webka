@@ -1,90 +1,385 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Sneaker Shop</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SneakerShop - Магазин кроссовок</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        .card { margin: 10px; }
-        #cart { position: fixed; right: 20px; bottom: 20px; }
+        :root {
+            --primary: #6c5ce7;
+            --secondary: #a29bfe;
+            --dark: #2d3436;
+            --light: #f5f6fa;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light);
+            color: var(--dark);
+        }
+        
+        .navbar-brand {
+            font-weight: 700;
+            color: var(--primary) !important;
+        }
+        
+        .product-card {
+            transition: transform 0.3s, box-shadow 0.3s;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            border: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .product-img {
+            height: 200px;
+            object-fit: cover;
+            background-color: #f8f9fa;
+        }
+        
+        .badge-custom {
+            background-color: var(--primary);
+        }
+        
+        .btn-custom {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 8px 20px;
+        }
+        
+        .btn-custom:hover {
+            background-color: #5649d2;
+            color: white;
+        }
+        
+        .cart-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .cart-count {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: #e74c3c;
+            color: white;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+        
+        .checkout-modal {
+            border-radius: 15px;
+        }
+        
+        @media (max-width: 768px) {
+            .product-img {
+                height: 150px;
+            }
+        }
     </style>
 </head>
 <body>
-<div class="container">
-    <h1 class="my-4">Магазин кроссовок</h1>
-    
-    <div class="row" id="products"></div>
-    
-    <button id="checkoutBtn" class="btn btn-success d-none" onclick="checkout()">
-        Оформить заказ ($<span id="total">0</span>)
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-shoe-prints me-2"></i>SneakerShop
+            </a>
+            <div class="ms-auto">
+                <span id="cartTotal" class="badge bg-primary rounded-pill">0</span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container my-4">
+        <h2 class="text-center mb-4">Коллекция кроссовок</h2>
+        
+        <div class="row" id="products">
+            <!-- Товары будут загружены здесь -->
+        </div>
+    </div>
+
+    <!-- Кнопка корзины -->
+    <button id="cartButton" class="cart-btn d-none" onclick="showCart()">
+        <i class="fas fa-shopping-cart fa-lg"></i>
+        <span id="cartBadge" class="cart-count">0</span>
     </button>
-</div>
 
-<script>
-let cart = JSON.parse(localStorage.getItem('cart')) || {};
-
-const products = [
-    {id: 1, name: "Nike Air Max", price: 120, image: "url_изображения"},
-    {id: 2, name: "Adidas Ultraboost", price: 150, image: "url_изображения"}
-];
-
-function renderProducts() {
-    const container = document.getElementById('products');
-    container.innerHTML = products.map(product => `
-        <div class="col-md-4">
-            <div class="card">
-                <img src="${product.image}" class="card-img-top">
-                <div class="card-body">
-                    <h5>${product.name}</h5>
-                    <p>$${product.price}</p>
-                    <button class="btn btn-primary" 
-                            onclick="addToCart(${product.id})">
-                        Добавить в корзину
-                    </button>
+    <!-- Модальное окно корзины -->
+    <div class="modal fade" id="cartModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content checkout-modal">
+                <div class="modal-header">
+                    <h5 class="modal-title">Ваша корзина</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="cartItems">
+                    <!-- Товары в корзине -->
+                    <p class="text-muted">Ваша корзина пуста</p>
+                </div>
+                <div class="modal-footer">
+                    <h5>Итого: $<span id="modalTotal">0</span></h5>
+                    <button class="btn btn-custom" onclick="checkout()">Оформить заказ</button>
                 </div>
             </div>
         </div>
-    `).join('');
-}
+    </div>
 
-function addToCart(productId) {
-    cart[productId] = (cart[productId] || 0) + 1;
-    updateCart();
-}
+    <!-- Модальное окно оформления заказа -->
+    <div class="modal fade" id="checkoutModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content checkout-modal">
+                <div class="modal-header">
+                    <h5 class="modal-title">Оформление заказа</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="orderForm">
+                        <div class="mb-3">
+                            <label class="form-label">Ваше имя</label>
+                            <input type="text" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Телефон</label>
+                            <input type="tel" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Адрес доставки</label>
+                            <textarea class="form-control" rows="2" required></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-custom" onclick="submitOrder()">Подтвердить заказ</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-function updateCart() {
-    localStorage.setItem('cart', JSON.stringify(cart));
-    const total = Object.entries(cart).reduce((sum, [id, qty]) => 
-        sum + (products.find(p => p.id === parseInt(id)).price * qty), 0);
-    
-    document.getElementById('total').textContent = total;
-    document.getElementById('checkoutBtn').classList.toggle('d-none', total === 0);
-}
-
-function checkout() {
-    Telegram.WebApp.showPopup({
-        title: "Оформление заказа",
-        message: "Введите ваши данные:",
-        buttons: [{
-            id: 'confirm',
-            type: 'default',
-            text: 'Подтвердить'
-        }]
-    }, async (btnId) => {
-        if(btnId === 'confirm') {
-            const data = {
-                cart: cart,
-                total: document.getElementById('total').textContent,
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Инициализация WebApp
+        Telegram.WebApp.expand();
+        Telegram.WebApp.enableClosingConfirmation();
+        
+        // Данные товаров (можно заменить на загрузку с сервера)
+        const products = [
+            {
+                id: 1,
+                name: "Nike Air Max 270",
+                price: 150,
+                image: "https://static.nike.com/a/images/t_PDP_1280_v1/f_auto,q_auto:eco/awjogwdq4d4eswdegkqr/air-max-270-mens-shoes-KkLcGR.png",
+                description: "Кроссовки с революционной амортизацией",
+                colors: ["black", "white", "red"]
+            },
+            {
+                id: 2,
+                name: "Adidas Ultraboost 22",
+                price: 180,
+                image: "https://assets.adidas.com/images/w_600,f_auto,q_auto/1ce2d3b0a1f34f7c8e9aad5300a1d5f3_9366/Ultraboost_22_Shoes_Black_GZ0127_01_standard.jpg",
+                description: "Невероятный комфорт и отзывчивость",
+                colors: ["black", "blue", "white"]
+            },
+            {
+                id: 3,
+                name: "Puma RS-X",
+                price: 110,
+                image: "https://images.puma.com/image/upload/f_auto,q_auto,b_rgb:fafafa,w_600,h_600/global/376533/01/sv01/fnd/EEA/fmt/png/RS-X-Reinvention-Sneakers",
+                description: "Стиль ретро с современными технологиями",
+                colors: ["multicolor", "white", "pink"]
+            },
+            {
+                id: 4,
+                name: "New Balance 574",
+                price: 90,
+                image: "https://nb.scene7.com/is/image/NB/m574v1_nb_02_i?$pdpflexf2$&qlt=80&fmt=webp&wid=440&hei=440",
+                description: "Классика, проверенная временем",
+                colors: ["grey", "navy", "green"]
+            }
+        ];
+        
+        let cart = JSON.parse(localStorage.getItem('cart')) || {};
+        let cartModal = new bootstrap.Modal(document.getElementById('cartModal'));
+        let checkoutModal = new bootstrap.Modal(document.getElementById('checkoutModal'));
+        
+        // Рендер товаров
+        function renderProducts() {
+            const container = document.getElementById('products');
+            container.innerHTML = products.map(product => `
+                <div class="col-md-6 col-lg-3">
+                    <div class="card product-card h-100">
+                        <img src="${product.image}" class="card-img-top product-img" alt="${product.name}">
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title">${product.name}</h5>
+                            <p class="card-text text-muted small">${product.description}</p>
+                            <div class="mt-auto">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0">$${product.price}</h5>
+                                    <button class="btn btn-sm btn-custom" onclick="addToCart(${product.id})">
+                                        <i class="fas fa-cart-plus"></i> В корзину
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Добавление в корзину
+        function addToCart(productId) {
+            if (!cart[productId]) {
+                cart[productId] = {
+                    quantity: 1,
+                    ...products.find(p => p.id === productId)
+                };
+            } else {
+                cart[productId].quantity += 1;
+            }
+            updateCart();
+            
+            // Анимация добавления
+            const btn = event.target.closest('button');
+            btn.innerHTML = '<i class="fas fa-check"></i> Добавлено';
+            btn.classList.remove('btn-custom');
+            btn.classList.add('btn-success');
+            setTimeout(() => {
+                btn.innerHTML = '<i class="fas fa-cart-plus"></i> В корзину';
+                btn.classList.add('btn-custom');
+                btn.classList.remove('btn-success');
+            }, 1000);
+        }
+        
+        // Обновление корзины
+        function updateCart() {
+            localStorage.setItem('cart', JSON.stringify(cart));
+            
+            const totalItems = Object.values(cart).reduce((sum, item) => sum + item.quantity, 0);
+            const totalPrice = Object.values(cart).reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            
+            document.getElementById('cartBadge').textContent = totalItems;
+            document.getElementById('cartTotal').textContent = totalItems;
+            document.getElementById('modalTotal').textContent = totalPrice.toFixed(2);
+            
+            // Показываем/скрываем кнопку корзины
+            const cartButton = document.getElementById('cartButton');
+            if (totalItems > 0) {
+                cartButton.classList.remove('d-none');
+            } else {
+                cartButton.classList.add('d-none');
+            }
+            
+            // Обновляем список товаров в корзине
+            const cartItemsContainer = document.getElementById('cartItems');
+            if (totalItems > 0) {
+                cartItemsContainer.innerHTML = Object.values(cart).map(item => `
+                    <div class="d-flex align-items-center mb-3">
+                        <img src="${item.image}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 10px;" class="me-3">
+                        <div class="flex-grow-1">
+                            <h6 class="mb-0">${item.name}</h6>
+                            <small class="text-muted">$${item.price} x ${item.quantity}</small>
+                        </div>
+                        <div>
+                            <h6 class="mb-0">$${(item.price * item.quantity).toFixed(2)}</h6>
+                            <button class="btn btn-sm btn-outline-danger" onclick="removeFromCart(${item.id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                cartItemsContainer.innerHTML = '<p class="text-muted">Ваша корзина пуста</p>';
+            }
+        }
+        
+        // Удаление из корзины
+        function removeFromCart(productId) {
+            if (cart[productId]) {
+                if (cart[productId].quantity > 1) {
+                    cart[productId].quantity -= 1;
+                } else {
+                    delete cart[productId];
+                }
+                updateCart();
+            }
+        }
+        
+        // Показать корзину
+        function showCart() {
+            cartModal.show();
+        }
+        
+        // Оформление заказа
+        function checkout() {
+            cartModal.hide();
+            checkoutModal.show();
+        }
+        
+        // Отправка заказа
+        function submitOrder() {
+            const form = document.getElementById('orderForm');
+            if (!form.checkValidity()) {
+                form.classList.add('was-validated');
+                return;
+            }
+            
+            const orderData = {
+                cart: Object.values(cart).map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    price: item.price,
+                    quantity: item.quantity
+                })),
+                total: Object.values(cart).reduce((sum, item) => sum + (item.price * item.quantity), 0),
                 date: new Date().toISOString()
             };
-            Telegram.WebApp.sendData(JSON.stringify(data));
+            
+            Telegram.WebApp.sendData(JSON.stringify(orderData));
             Telegram.WebApp.close();
         }
-    });
-}
-
-document.addEventListener('DOMContentLoaded', renderProducts);
-</script>
+        
+        // Инициализация при загрузке
+        document.addEventListener('DOMContentLoaded', () => {
+            renderProducts();
+            updateCart();
+            
+            // Инициализация модальных окон
+            [].slice.call(document.querySelectorAll('[data-bs-toggle="modal"]'))
+                .forEach(button => {
+                    button.addEventListener('click', event => {
+                        const target = button.getAttribute('data-bs-target');
+                        const modal = new bootstrap.Modal(document.querySelector(target));
+                        modal.show();
+                    });
+                });
+        });
+    </script>
 </body>
 </html>
