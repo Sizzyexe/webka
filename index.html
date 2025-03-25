@@ -6,6 +6,7 @@
     <title>SneakerShop - Premium Footwear</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
@@ -24,7 +25,7 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--light);
             color: var(--dark);
-            padding-bottom: 80px !important; 
+            padding-bottom: 100px !important;
         }
         
         .navbar-brand {
@@ -89,7 +90,7 @@
         
         .cart-btn {
             position: fixed;
-            bottom: 20px;
+            bottom: calc(20px + env(safe-area-inset-bottom));
             right: 20px;
             z-index: 1000;
             width: 60px;
@@ -101,6 +102,15 @@
             align-items: center;
             justify-content: center;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            border: none;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .cart-btn.visible {
+            opacity: 1;
+            visibility: visible;
         }
         
         .cart-count {
@@ -156,6 +166,11 @@
             
             #productDetailModal .modal-dialog {
                 margin: 10px;
+                max-width: calc(100% - 20px);
+            }
+            
+            .modal-content {
+                border-radius: 10px;
             }
         }
     </style>
@@ -222,7 +237,7 @@
     </div>
 
     <!-- Кнопка корзины -->
-    <button id="cartButton" class="cart-btn d-none" onclick="showCart()">
+    <button id="cartButton" class="cart-btn" onclick="showCart()">
         <i class="fas fa-shopping-cart fa-lg"></i>
         <span id="cartBadge" class="cart-count">0</span>
     </button>
@@ -544,10 +559,10 @@
             }
         ];
         
-        let cart = JSON.parse(localStorage.getItem('cart')) || {};
-        let cartModal = new bootstrap.Modal(document.getElementById('cartModal'));
-        let checkoutModal = new bootstrap.Modal(document.getElementById('checkoutModal'));
-        let productDetailModal = new bootstrap.Modal(document.getElementById('productDetailModal'));
+        let cart = {};
+        let cartModal = null;
+        let checkoutModal = null;
+        let productDetailModal = null;
         let activeFilters = {
             brand: null,
             type: null
@@ -557,6 +572,16 @@
         let currentQuantity = 1;
         let sortMethod = 'default';
         let searchQuery = '';
+        
+        // Инициализация корзины
+        function initCart() {
+            try {
+                cart = JSON.parse(localStorage.getItem('cart')) || {};
+            } catch (e) {
+                console.error('Ошибка при загрузке корзины:', e);
+                cart = {};
+            }
+        }
         
         // Рендер товаров с учетом фильтров и сортировки
         function renderProducts() {
@@ -589,7 +614,7 @@
                             <div class="mt-auto">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <h5 class="mb-0 brand-${product.brand}">$${product.price}</h5>
-                                    <button class="btn btn-sm btn-custom" onclick="showProductDetail(${product.id})">
+                                    <button class="btn btn-sm btn-custom add-to-cart-btn" data-product-id="${product.id}">
                                         <i class="fas fa-cart-plus"></i> В корзину
                                     </button>
                                 </div>
@@ -598,6 +623,14 @@
                     </div>
                 </div>
             `).join('');
+            
+            // Добавляем обработчики для кнопок добавления в корзину
+            document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const productId = parseInt(this.getAttribute('data-product-id'));
+                    showProductDetail(productId);
+                });
+            });
         }
         
         // Сортировка списка товаров
@@ -771,14 +804,13 @@
             });
         }
         
-        // Добавление в корзину
-        function addToCart(productId) {
-            showProductDetail(productId);
-        }
-        
         // Обновление корзины
         function updateCart() {
-            localStorage.setItem('cart', JSON.stringify(cart));
+            try {
+                localStorage.setItem('cart', JSON.stringify(cart));
+            } catch (e) {
+                console.error('Ошибка при сохранении корзины:', e);
+            }
             
             const totalItems = Object.values(cart).reduce((sum, item) => sum + item.quantity, 0);
             const totalPrice = Object.values(cart).reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -787,12 +819,12 @@
             document.getElementById('cartTotal').textContent = totalItems;
             document.getElementById('modalTotal').textContent = totalPrice.toFixed(2);
             
-            // Показываем/скрываем кнопку корзины
+            // Управление видимостью кнопки корзины
             const cartButton = document.getElementById('cartButton');
             if (totalItems > 0) {
-                cartButton.classList.remove('d-none');
+                cartButton.classList.add('visible');
             } else {
-                cartButton.classList.add('d-none');
+                cartButton.classList.remove('visible');
             }
             
             // Обновляем список товаров в корзине
@@ -829,6 +861,11 @@
         
         // Показать корзину
         function showCart() {
+            // Закрываем другие модальные окна
+            productDetailModal.hide();
+            checkoutModal.hide();
+            
+            // Показываем корзину
             cartModal.show();
         }
         
@@ -856,18 +893,68 @@
                     brand: item.brand
                 })),
                 total: Object.values(cart).reduce((sum, item) => sum + (item.price * item.quantity), 0),
-                date: new Date().toISOString()
+                date: new Date().toISOString(),
+                user: Telegram.WebApp.initDataUnsafe.user || null
             };
             
             Telegram.WebApp.sendData(JSON.stringify(orderData));
             Telegram.WebApp.close();
         }
         
+        // Настройка обработчиков для мобильных устройств
+        function setupMobileHandlers() {
+            const cartButton = document.getElementById('cartButton');
+            
+            // Обработчики для кнопки корзины
+            cartButton.addEventListener('click', showCart);
+            cartButton.addEventListener('touchstart', showCart, { passive: true });
+            
+            // Обработчики для кнопок добавления в корзину
+            document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
+                btn.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    const productId = parseInt(this.getAttribute('data-product-id'));
+                    showProductDetail(productId);
+                }, { passive: false });
+            });
+            
+            // Обработчик свайпа вниз для модального окна корзины
+            const modalContent = document.querySelector('#cartModal .modal-content');
+            let startY = 0;
+            
+            modalContent.addEventListener('touchstart', (e) => {
+                startY = e.touches[0].clientY;
+            }, { passive: true });
+            
+            modalContent.addEventListener('touchmove', (e) => {
+                const y = e.touches[0].clientY;
+                if (y - startY > 50) { // Свайп вниз
+                    cartModal.hide();
+                }
+            }, { passive: true });
+        }
+        
         // Инициализация при загрузке
         document.addEventListener('DOMContentLoaded', () => {
+            // Инициализация модальных окон
+            cartModal = new bootstrap.Modal('#cartModal');
+            checkoutModal = new bootstrap.Modal('#checkoutModal');
+            productDetailModal = new bootstrap.Modal('#productDetailModal');
+            
+            // Инициализация корзины
+            initCart();
+            
+            // Рендер товаров
             renderProducts();
+            
+            // Обновление корзины
             updateCart();
+            
+            // Настройка фильтров
             setupFilters();
+            
+            // Настройка обработчиков для мобильных
+            setupMobileHandlers();
             
             // Поиск при нажатии Enter
             document.getElementById('searchInput').addEventListener('keypress', function(e) {
