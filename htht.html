@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SneakerShop - Premium Footwear</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --primary: #6c5ce7;
+            --secondary: #a29bfe;
+            --dark: #2d3436;
+            --light: #f5f6fa;
+            --nike: #e9584b;
+            --adidas: #1470b6;
+            --puma: #a3a3a3;
+            --newbalance: #d43a2f;
+            --jordan: #e0583a;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light);
+            color: var(--dark);
+            padding-bottom: 100px !important;
+        }
+        
+        .navbar-brand {
+            font-weight: 700;
+            color: var(--primary) !important;
+        }
+        
+        .product-card {
+            transition: transform 0.3s, box-shadow 0.3s;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            border: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .product-img {
+            height: 200px;
+            object-fit: contain;
+            background-color: #f8f9fa;
+            padding: 20px;
+            cursor: pointer;
+        }
+        
+        .brand-nike { color: var(--nike); }
+        .brand-adidas { color: var(--adidas); }
+        .brand-puma { color: var(--puma); }
+        .brand-newbalance { color: var(--newbalance); }
+        .brand-jordan { color: var(--jordan); }
+        
+        .badge-brand {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 12px;
+            padding: 5px 10px;
+        }
+        
+        .badge-nike { background-color: var(--nike); }
+        .badge-adidas { background-color: var(--adidas); }
+        .badge-puma { background-color: var(--puma); color: #000; }
+        .badge-newbalance { background-color: var(--newbalance); }
+        .badge-jordan { background-color: var(--jordan); }
+        
+        .btn-custom {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 8px 20px;
+        }
+        
+        .btn-custom:hover {
+            background-color: #5649d2;
+            color: white;
+        }
+        
+        .cart-btn {
+            position: fixed;
+            bottom: calc(20px + env(safe-area-inset-bottom));
+            right: 20px;
+            z-index: 1000;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            border: none;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .cart-btn.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .cart-count {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: #e74c3c;
+            color: white;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+        
+        .filter-btn {
+            border-radius: 50px;
+            margin: 5px;
+            font-size: 14px;
+        }
+        
+        .active-filter {
+            background-color: var(--primary) !important;
+            color: white !important;
+        }
+        
+        #productDetailModal .modal-dialog {
+            max-width: 800px;
+        }
+        
+        .size-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin: 5px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        
+        .size-btn.selected {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        @media (max-width: 768px) {
+            .product-img {
+                height: 150px;
+            }
+            
+            #productDetailModal .modal-dialog {
+                margin: 10px;
+                max-width: calc(100% - 20px);
+            }
+            
+            .modal-content {
+                border-radius: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-shoe-prints me-2"></i>SneakerShop
+            </a>
+            <div class="ms-auto d-flex align-items-center">
+                <div class="input-group me-3" style="max-width: 200px;">
+                    <input type="text" id="searchInput" class="form-control form-control-sm" placeholder="Поиск...">
+                    <button class="btn btn-outline-secondary" type="button" onclick="searchProducts()">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+                <span id="cartTotal" class="badge bg-primary rounded-pill">0</span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container my-4">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2 class="text-center mb-3">Коллекция кроссовок</h2>
+                
+                <div class="d-flex flex-wrap justify-content-between mb-3">
+                    <div class="d-flex flex-wrap">
+                        <button class="btn btn-outline-secondary filter-btn active-filter" data-filter="all">Все</button>
+                        <button class="btn btn-outline-secondary filter-btn" data-filter="brand:nike">Nike</button>
+                        <button class="btn btn-outline-secondary filter-btn" data-filter="brand:adidas">Adidas</button>
+                        <button class="btn btn-outline-secondary filter-btn" data-filter="brand:puma">Puma</button>
+                        <button class="btn btn-outline-secondary filter-btn" data-filter="brand:newbalance">New Balance</button>
+                        <button class="btn btn-outline-secondary filter-btn" data-filter="brand:jordan">Jordan</button>
+                    </div>
+                    
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="sortDropdown" data-bs-toggle="dropdown">
+                            Сортировка
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" onclick="sortProducts('price-asc')">По цене (дешевые)</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="sortProducts('price-desc')">По цене (дорогие)</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="sortProducts('name-asc')">По названию (А-Я)</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="sortProducts('name-desc')">По названию (Я-А)</a></li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="d-flex flex-wrap justify-content-center">
+                    <button class="btn btn-outline-secondary filter-btn" data-filter="type:running">Беговые</button>
+                    <button class="btn btn-outline-secondary filter-btn" data-filter="type:basketball">Баскетбольные</button>
+                    <button class="btn btn-outline-secondary filter-btn" data-filter="type:lifestyle">Повседневные</button>
+                    <button class="btn btn-outline-secondary filter-btn" data-filter="type:skateboarding">Скейтбординг</button>
+                    <button class="btn btn-outline-secondary filter-btn" data-filter="type:training">Тренировочные</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row" id="products">
+            <!-- Товары будут загружены здесь -->
+        </div>
+    </div>
+
+    <!-- Кнопка корзины -->
+    <button id="cartButton" class="cart-btn" onclick="showCart()">
+        <i class="fas fa-shopping-cart fa-lg"></i>
+        <span id="cartBadge" class="cart-count">0</span>
+    </button>
+
+    <!-- Модальное окно корзины -->
+    <div class="modal fade" id="cartModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Ваша корзина</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="cartItems">
+                    <!-- Товары в корзине -->
+                    <p class="text-muted">Ваша корзина пуста</p>
+                </div>
+                <div class="modal-footer">
+                    <h5>Итого: $<span id="modalTotal">0</span></h5>
+                    <button class="btn btn-custom" onclick="checkout()">Оформить заказ</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно оформления заказа -->
+    <div class="modal fade" id="checkoutModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Оформление заказа</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="orderForm">
+                        <div class="mb-3">
+                            <label class="form-label">Ваше имя*</label>
+                            <input type="text" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Телефон*</label>
+                            <input type="tel" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Адрес доставки*</label>
+                            <textarea class="form-control" rows="2" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Комментарий к заказу</label>
+                            <textarea class="form-control" rows="2"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-custom" onclick="submitOrder()">Подтвердить заказ</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно деталей товара -->
+    <div class="modal fade" id="productDetailModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="detailTitle">Название товара</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <img id="detailImage" src="" class="img-fluid rounded" alt="">
+                        </div>
+                        <div class="col-md-6">
+                            <h4 id="detailPrice" class="mb-3">$0</h4>
+                            <p id="detailDescription" class="text-muted"></p>
+                            <div class="mb-4">
+                                <h6>Доступные размеры:</h6>
+                                <div id="sizeSelection" class="d-flex flex-wrap">
+                                    <!-- Размеры будут загружены здесь -->
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center mb-3">
+                                <button class="btn btn-secondary me-2" onclick="changeQuantity(-1)">
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                                <span id="quantity" class="mx-2">1</span>
+                                <button class="btn btn-secondary me-3" onclick="changeQuantity(1)">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                                <button class="btn btn-custom flex-grow-1" onclick="addToCartFromDetail()">
+                                    <i class="fas fa-cart-plus"></i> Добавить в корзину
+                                </button>
+                            </div>
+                            <div class="mt-4">
+                                <h6>О товаре:</h6>
+                                <ul id="detailFeatures" class="list-unstyled">
+                                    <!-- Характеристики будут загружены здесь -->
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Инициализация WebApp
+        Telegram.WebApp.expand();
+        Telegram.WebApp.enableClosingConfirmation();
+        
+        // Каталог товаров
+        const products = [ /* ... (остается без изменений) ... */ ];
+        
+        // Инициализация корзины с улучшенной обработкой ошибок
+        let cart = {};
+        try {
+            const savedCart = localStorage.getItem('cart');
+            cart = savedCart ? JSON.parse(savedCart) : {};
+            if (!isValidCart(cart)) {
+                console.warn('Обнаружена поврежденная корзина, сброс...');
+                cart = {};
+            }
+        } catch (e) {
+            console.error('Ошибка загрузки корзины:', e);
+            cart = {};
+        }
+
+        // Проверка валидности структуры корзины
+        function isValidCart(cart) {
+            return Object.values(cart).every(item => 
+                item && 
+                typeof item === 'object' &&
+                'id' in item &&
+                'name' in item &&
+                'price' in item &&
+                'quantity' in item &&
+                'selectedSize' in item
+            );
+        }
+
+        // Обновление корзины
+        function updateCart() {
+            try {
+                localStorage.setItem('cart', JSON.stringify(cart));
+            } catch (e) {
+                console.error('Ошибка сохранения корзины:', e);
+            }
+
+            // Подсчет с защитой от NaN
+            const totalItems = Object.values(cart).reduce((sum, item) => {
+                const qty = Number(item.quantity) || 0;
+                return sum + qty;
+            }, 0);
+
+            const totalPrice = Object.values(cart).reduce((sum, item) => {
+                const price = Number(item.price) || 0;
+                const qty = Number(item.quantity) || 0;
+                return sum + (price * qty);
+            }, 0);
+
+            // Обновление UI
+            document.getElementById('cartBadge').textContent = totalItems;
+            document.getElementById('cartTotal').textContent = totalItems;
+            document.getElementById('modalTotal').textContent = totalPrice.toFixed(2);
+
+            // Обновление содержимого корзины
+            const cartItemsContainer = document.getElementById('cartItems');
+            cartItemsContainer.innerHTML = '';
+
+            if (totalItems > 0) {
+                Object.entries(cart).forEach(([key, item]) => {
+                    if (!item || !item.name || isNaN(item.price) || isNaN(item.quantity)) {
+                        console.warn('Невалидный товар:', item);
+                        return;
+                    }
+
+                    const itemElement = document.createElement('div');
+                    itemElement.className = 'd-flex align-items-center mb-3';
+                    itemElement.innerHTML = `
+                        <img src="${item.image}" 
+                             style="width: 60px; height: 60px; object-fit: contain; border-radius: 10px; background: #f8f9fa; padding: 5px;" 
+                             class="me-3">
+                        <div class="flex-grow-1">
+                            <h6 class="mb-0">${item.name}</h6>
+                            <small class="text-muted">
+                                $${item.price} x ${item.quantity}
+                                ${item.selectedSize ? `(размер: ${item.selectedSize})` : ''}
+                            </small>
+                        </div>
+                        <div>
+                            <h6 class="mb-0">$${(item.price * item.quantity).toFixed(2)}</h6>
+                            <button class="btn btn-sm btn-outline-danger" 
+                                    onclick="removeFromCart('${key}', event)">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    `;
+                    cartItemsContainer.appendChild(itemElement);
+                });
+            } else {
+                cartItemsContainer.innerHTML = '<p class="text-muted">Ваша корзина пуста</p>';
+            }
+
+            // Обновление видимости кнопки корзины
+            const cartButton = document.getElementById('cartButton');
+            cartButton.classList.toggle('visible', totalItems > 0);
+        }
+
+        // Добавление в корзину с улучшенной проверкой
+        function addToCartFromDetail() {
+            if (!currentSize) {
+                alert('Пожалуйста, выберите размер');
+                return;
+            }
+
+            if (!currentProduct || !currentProduct.id) {
+                console.error('Не выбран товар для добавления');
+                return;
+            }
+
+            const cartKey = `${currentProduct.id}-${currentSize}`;
+
+            try {
+                const quantity = Number(currentQuantity) || 1;
+                const price = Number(currentProduct.price) || 0;
+
+                cart[cartKey] = {
+                    ...currentProduct,
+                    quantity: (cart[cartKey]?.quantity || 0) + quantity,
+                    selectedSize: currentSize,
+                    price: price
+                };
+
+                updateCart();
+                productDetailModal.hide();
+
+                // Анимация
+                const cartButton = document.getElementById('cartButton');
+                cartButton.classList.add('animate__animated', 'animate__bounce');
+                setTimeout(() => {
+                    cartButton.classList.remove('animate__animated', 'animate__bounce');
+                }, 1000);
+            } catch (e) {
+                console.error('Ошибка добавления в корзину:', e);
+                alert('Ошибка добавления товара');
+            }
+        }
+
+        // Удаление из корзины
+        function removeFromCart(key, event) {
+            event?.stopPropagation();
+            if (cart[key]) {
+                delete cart[key];
+                updateCart();
+            }
+        }
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', () => {
+            // Инициализация модальных окон
+            const cartModal = new bootstrap.Modal('#cartModal');
+            const checkoutModal = new bootstrap.Modal('#checkoutModal');
+            const productDetailModal = new bootstrap.Modal('#productDetailModal');
+
+            // Первоначальный рендер
+            renderProducts();
+            updateCart();
+
+            // Обработчики для мобильных устройств
+            document.getElementById('cartButton').addEventListener('touchstart', showCart);
+            
+            // Остальной код инициализации...
+        });
+
+        // Остальные функции (renderProducts, showProductDetail и т.д.) остаются без изменений
+        // ...
+    </script>
+</body>
+</html>
